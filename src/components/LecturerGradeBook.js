@@ -42,27 +42,32 @@ function ClassSelectionForm() {
     };
 
     const handleSaveClick = async (enrolmentId) => {
-    const newGrade = editingGrade[enrolmentId];
-    try {
-        await axios.patch(
-            baseUrl + 'api/enrolments/' + enrolmentId + '/',
-            { grade: newGrade },
-            {
-                headers: { Authorization: 'Token ' + localStorage.getItem('token') },
-            }
-        );
-        setIsEditing({
-            ...isEditing,
-            [enrolmentId]: false
-        });
-        fetchEnrolments(); // Refresh enrolments after saving
-    } catch (error) {
-        console.error('Error saving grade:', error);
-        console.log('Response data:', error.response.data); // Log API response data
-    }
-};
+        const newGrade = editingGrade[enrolmentId];
+        try {
+            await axios.patch(
+                baseUrl + 'api/enrolments/' + enrolmentId + '/',
+                { grade: newGrade },
+                {
+                    headers: { Authorization: 'Token ' + localStorage.getItem('token') },
+                }
+            );
+            setIsEditing({
+                ...isEditing,
+                [enrolmentId]: false
+            });
+            fetchEnrolments(); // Refresh enrolments after saving
+        } catch (error) {
+            console.error('Error saving grade:', error);
+            console.log('Response data:', error.response.data); // Log API response data
+        }
+    };
 
+    const alertMessage = () => {
+        enrolments.map(enrolment => {
+            alert("Successfully notified " + enrolment.student.email)
+        })
 
+    };
 
     return (
         <div>
@@ -90,6 +95,7 @@ function ClassSelectionForm() {
                     </li>
                 ))}
             </ul>
+            <button onClick={alertMessage}>Notify student</button>
         </div>
     );
 }
