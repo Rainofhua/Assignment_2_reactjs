@@ -3,29 +3,25 @@ import axios from 'axios';
 import { baseUrl } from '../Constants'; // Assuming baseUrl is defined in Constants
 
 function ShowStudentEnrol(props) {
-    const [enrolments, setEnrolments] = useState([]);
-    const [students, setStudents] = useState([]);
     const [classes, setClasses] = useState([]);
-    const [selectedStudent, setSelectedStudent] = useState('');
+    const [students, setStudents] = useState([]);
+    const [selectedStudents, setSelectedStudents] = useState([]);
     const [selectedClass, setSelectedClass] = useState('');
-    const [grade, setGrade] = useState('');
-    const [enrolTime, setEnrolTime] = useState('');
-    const [gradeTime, setGradeTime] = useState('');
+    const [error, setError] = useState('');
 
     useEffect(() => {
-        fetchEnrolments();
-        fetchStudents();
         fetchClasses();
+        fetchStudents();
     }, []);
 
-    const fetchEnrolments = async () => {
+    const fetchClasses = async () => {
         try {
-            const response = await axios.get(baseUrl + 'api/enrolments/', {
+            const response = await axios.get(baseUrl + 'api/classes/', {
                 headers: { Authorization: 'Token ' + localStorage.getItem('token') },
             });
-            setEnrolments(response.data);
+            setClasses(response.data);
         } catch (error) {
-            console.log('Error fetching enrolments:', error);
+            console.log('Error fetching classes:', error);
         }
     };
 
@@ -40,42 +36,35 @@ function ShowStudentEnrol(props) {
         }
     };
 
-    const fetchClasses = async () => {
-        try {
-            const response = await axios.get(baseUrl + 'api/classes/', {
-                headers: { Authorization: 'Token ' + localStorage.getItem('token') },
-            });
-            setClasses(response.data);
-        } catch (error) {
-            console.log('Error fetching classes:', error);
-        }
-    };
-
-    const handleCreateEnrolment = async () => {
-        const enrolmentData = {
-            student: { id: selectedStudent },
-            class_: { id: selectedClass },
-            grade,
-            enrolTime,
-            gradeTime
+    const handleAddStudentsToClass = async () => {
+        const studentData = {
+            student_ids: selectedStudents,
+            action: 'add',
         };
 
         try {
-            const response = await axios.post(baseUrl + 'api/enrolments/', enrolmentData, {
+            await axios.post(`${baseUrl}api/classes/${selectedClass}/update_students/`, studentData, {
                 headers: { Authorization: 'Token ' + localStorage.getItem('token') },
             });
-            alert('Enrolment created successfully');
-            setEnrolments([...enrolments, response.data]);
+            alert('Students added to class successfully');
             // Reset form
-            setSelectedStudent('');
+            setSelectedStudents([]);
             setSelectedClass('');
-            setGrade('');
-            setEnrolTime('');
-            setGradeTime('');
         } catch (error) {
-            console.log('Error creating enrolment:', error);
-            alert('Error creating enrolment. Please check the console for details.');
+            console.log('Error adding students to class:', error);
+            setError('Error adding students to class. Please check the console for details.');
         }
+    };
+
+    const handleStudentChange = (e) => {
+        const options = e.target.options;
+        const selected = [];
+        for (let i = 0; i < options.length; i++) {
+            if (options[i].selected) {
+                selected.push(options[i].value);
+            }
+        }
+        setSelectedStudents(selected);
     };
 
     return (
@@ -83,10 +72,9 @@ function ShowStudentEnrol(props) {
             <h1>Student Enrol</h1>
             <div>
                 <label>
-                    Student:
+                    Students:
                     <br />
-                    <select value={selectedStudent} onChange={(e) => setSelectedStudent(e.target.value)}>
-                        <option value="">Select Student</option>
+                    <select multiple value={selectedStudents} onChange={handleStudentChange}>
                         {students.map(student => (
                             <option key={student.id} value={student.id}>
                                 {student.firstName} {student.lastName}
@@ -102,41 +90,27 @@ function ShowStudentEnrol(props) {
                         <option value="">Select Class</option>
                         {classes.map(class_ => (
                             <option key={class_.id} value={class_.id}>
-                                {class_.course.code} - {class_.course.name}
+                                {class_.number}
                             </option>
                         ))}
                     </select>
                 </label>
                 <br />
-                <label>
-                    Grade:
-                    <br />
-                    <input type="text" value={grade} onChange={(e) => setGrade(e.target.value)} />
-                </label>
-                <br />
-                <label>
-                    Enrol Time:
-                    <br />
-                    <input type="datetime-local" value={enrolTime} onChange={(e) => setEnrolTime(e.target.value)} />
-                </label>
-                <br />
-                <label>
-                    Grade Time:
-                    <br />
-                    <input type="datetime-local" value={gradeTime} onChange={(e) => setGradeTime(e.target.value)} />
-                </label>
-                <br />
-                <button onClick={handleCreateEnrolment}>Add Enrolment</button>
+                <button onClick={handleAddStudentsToClass}>Add Students to Class</button>
+                {error && <p style={{ color: 'red' }}>{error}</p>}
             </div>
+            <h2>Enrolments</h2>
             <ul>
-                {enrolments.map(enrolment => (
-                    <li key={enrolment.id}>
-                        <h3>Enrolment ID: {enrolment.id}</h3>
-                        <p>Student: {enrolment.student.firstName} {enrolment.student.lastName}</p>
-                        <p>Course: {enrolment.Class.course.code} - {enrolment.Class.course.name}</p>
-                        <p>Semester: {enrolment.Class.semester.year} {enrolment.Class.semester.semester}</p>
-                        <p>Lecturer: {enrolment.Class.lecturer.firstName} {enrolment.Class.lecturer.lastName}</p>
-                    </li>
+                {classes.map(class_ => (
+                    class_.students.map(student => (
+                        <li key={`${class_.id}-${student.id}`}>
+                            <h3>Class Number: {class_.number}</h3>
+                            <p>Student: {student.firstName} {student.lastName}</p>
+                            <p>Course: {class_.course.code} - {class_.course.name}</p>
+                            <p>Semester: {class_.semester.year} {class_.semester.semester}</p>
+                            <p>Lecturer: {class_.lecturer.firstName} {class_.lecturer.lastName}</p>
+                        </li>
+                    ))
                 ))}
             </ul>
         </div>

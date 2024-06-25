@@ -8,16 +8,14 @@ function ShowClasses() {
     const [semesters, setSemesters] = useState([]);
     const [lecturers, setLecturers] = useState([]);
     const [students, setStudents] = useState([]);
-
     const [number, setNumber] = useState('');
     const [courseId, setCourseId] = useState('');
     const [semesterId, setSemesterId] = useState('');
     const [lecturerId, setLecturerId] = useState('');
-    const [selectedStudents, setSelectedStudents] = useState([]);
-    const [editMode, setEditMode] = useState(false);
-    const [editingId, setEditingId] = useState(null);
+    const [studentIds, setStudentIds] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [editingClass, setEditingClass] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -45,29 +43,20 @@ function ShowClasses() {
         setLoading(false);
     };
 
-    const handleStudentChange = (e) => {
-        const { options } = e.target;
-        const selected = [];
-        for (let i = 0, len = options.length; i < len; i++) {
-            if (options[i].selected) {
-                selected.push(parseInt(options[i].value, 10));
-            }
-        }
-        setSelectedStudents(selected);
-    };
-
     const createOrUpdateClass = async () => {
         const data = {
             number,
-            course: { id: courseId },
-            semester: { id: semesterId },
-            lecturer: { id: lecturerId },
-            students: selectedStudents.map(id => ({ id })),
+            course_id: courseId,
+            semester_id: semesterId,
+            lecturer_id: lecturerId,
+            student_ids: studentIds,
         };
 
+        console.log('Request data:', data); // Log the request data
+
         try {
-            if (editMode) {
-                await axios.put(`${baseUrl}api/classes/${editingId}/`, data, {
+            if (editingClass) {
+                await axios.put(`${baseUrl}api/classes/${editingClass.id}/`, data, {
                     headers: { Authorization: `Token ${localStorage.getItem('token')}` },
                 });
                 alert('Update success');
@@ -78,11 +67,34 @@ function ShowClasses() {
                 setClasses([...classes, response.data]);
                 alert('Create success');
             }
-            fetchData();
             resetForm();
+            fetchData();
         } catch (error) {
+            console.log('Error response:', error.response); // Log the error response
             setError('Error saving class: ' + (error.response?.data.detail || 'Unknown error'));
         }
+    };
+
+    const deleteClass = async (classId) => {
+        try {
+            await axios.delete(`${baseUrl}api/classes/${classId}/`, {
+                headers: { Authorization: `Token ${localStorage.getItem('token')}` },
+            });
+            alert('Delete success');
+            fetchData();
+        } catch (error) {
+            console.log('Error response:', error.response); // Log the error response
+            setError('Error deleting class: ' + (error.response?.data.detail || 'Unknown error'));
+        }
+    };
+
+    const startEditing = (classItem) => {
+        setNumber(classItem.number);
+        setCourseId(classItem.course.id);
+        setSemesterId(classItem.semester.id);
+        setLecturerId(classItem.lecturer.id);
+        setStudentIds(classItem.students.map(student => student.id));
+        setEditingClass(classItem);
     };
 
     const resetForm = () => {
@@ -90,31 +102,19 @@ function ShowClasses() {
         setCourseId('');
         setSemesterId('');
         setLecturerId('');
-        setSelectedStudents([]);
-        setEditMode(false);
-        setEditingId(null);
+        setStudentIds([]);
+        setEditingClass(null);
     };
 
-    const handleEdit = (classItem) => {
-        setNumber(classItem.number);
-        setCourseId(classItem.course.id);
-        setSemesterId(classItem.semester.id);
-        setLecturerId(classItem.lecturer.id);
-        setSelectedStudents(classItem.students.map(student => student.id));
-        setEditMode(true);
-        setEditingId(classItem.id);
-    };
-
-    const handleDelete = async (id) => {
-        try {
-            await axios.delete(`${baseUrl}api/classes/${id}/`, {
-                headers: { Authorization: `Token ${localStorage.getItem('token')}` },
-            });
-            alert('Delete success');
-            setClasses(classes.filter(cls => cls.id !== id));
-        } catch (error) {
-            setError('Error deleting class');
+    const handleStudentChange = (e) => {
+        const options = e.target.options;
+        const selectedStudents = [];
+        for (let i = 0; i < options.length; i++) {
+            if (options[i].selected) {
+                selectedStudents.push(options[i].value);
+            }
         }
+        setStudentIds(selectedStudents);
     };
 
     return (
@@ -174,7 +174,7 @@ function ShowClasses() {
                 <label>
                     Students:
                     <br />
-                    <select multiple value={selectedStudents} onChange={handleStudentChange}>
+                    <select multiple value={studentIds} onChange={handleStudentChange}>
                         {students.map((student) => (
                             <option key={student.id} value={student.id}>
                                 {student.firstName} {student.lastName}
@@ -183,8 +183,8 @@ function ShowClasses() {
                     </select>
                 </label>
                 <br />
-                <button onClick={createOrUpdateClass}>{editMode ? 'Update' : 'Add'}</button>
-                {editMode && <button onClick={resetForm}>Cancel</button>}
+                <button className="custom-button" onClick={createOrUpdateClass}>{editingClass ? 'Update' : 'Add'}</button>
+                {editingClass && <button className="custom-button" onClick={resetForm}>Cancel Edit</button>}
             </div>
             {loading ? (
                 <p>Loading...</p>
@@ -194,11 +194,11 @@ function ShowClasses() {
                         <h3>ID: {classItem.id}</h3>
                         <p>Number: {classItem.number}</p>
                         <p>Course: {classItem.course.name}</p>
-                        <p>Semester: Year: {classItem.semester.year}, Semester: {classItem.semester.semester}</p>
-                        <p>Lecturer: {classItem.lecturer.first_name} {classItem.lecturer.last_name}</p>
-                        <p>Students: {classItem.students.map(student => student.first_name + ' ' + student.last_name).join(', ')}</p>
-                        <button onClick={() => handleEdit(classItem)}>Edit</button>
-                        <button onClick={() => handleDelete(classItem.id)}>Delete</button>
+                        <p>Year: {classItem.semester.year}, Semester: {classItem.semester.semester}</p>
+                        <p>Lecturer: {classItem.lecturer.firstName} {classItem.lecturer.lastName}</p>
+                        <p>Students: {classItem.students.map(student => student.firstName + ' ' + student.lastName).join(', ')}</p>
+                        <button className="custom-button" onClick={() => startEditing(classItem)}>Edit</button>
+                        <button className="custom-button" onClick={() => deleteClass(classItem.id)}>Delete</button>
                     </div>
                 ))
             )}
